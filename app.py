@@ -18,7 +18,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 from datasets import load_dataset
 dataset = load_dataset("dair-ai/emotion")
 
-# Store IMDB Dataset locally as CSV file
+# Store Emotions Dataset locally as CSV file
 import pandas as pd
 
 train_df = dataset['train'].to_pandas()
@@ -44,7 +44,7 @@ len(data) # ensure we have actually loaded data into a format LangChain can reco
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 text_splitter = RecursiveCharacterTextSplitter(
-    # TODO: How do we create a text splitter with 1000 character chunks and 100 character overlap?
+    # Create a text splitter with 1000 character chunks and 100 character overlap
     chunk_size=1000,
     chunk_overlap=100
 )
@@ -60,31 +60,27 @@ len(chunked_documents) # ensure we have actually split the data into chunks
 # Use OpenAI embeddings to create a vector store, locally
 # pip3 install -q -U langchain-openai
 
-#import os
-#from google.colab import userdata
 from langchain_openai import OpenAIEmbeddings
 
 openai_api_key = OPENAI_API_KEY
 embedding_model = OpenAIEmbeddings(model="text-embedding-3-large", openai_api_key=openai_api_key)
-# TODO: How do we create our embedding model?
+# create embedding model
 
 # Create embedder
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.storage import LocalFileStore
 
-store = LocalFileStore("/path/to/root") # TODO: How do we create a local file store to for our cached embeddings?
-embedder = OpenAIEmbeddings(openai_api_key=openai_api_key) # TODO: How do we create our embedder?
+store = LocalFileStore("/path/to/root") # create a local file store for our cached embeddings
+embedder = OpenAIEmbeddings(openai_api_key=openai_api_key) # create our embedder
 
 # Create vector store using FAISS, locally
 # pip3 install -q faiss-cpu tiktoken
 
 from langchain_community.vectorstores import FAISS
 
-
-vector_store = FAISS.from_texts(texts=chunked_documents, embedding=embedder) # TODO: How do we create our vector store using FAISS?
+vector_store = FAISS.from_texts(texts=chunked_documents, embedding=embedder) # create our vector store using FAISS
 
 # LocalFileStore instance was created previously, store
-
 vector_store.save_local("faiss_index")
 
 # Ask RAG system a question
@@ -116,9 +112,15 @@ from langchain_openai import ChatOpenAI
 # Create prompt template to send to our LLM that will incorporate from our retriever with the question we ask chat model
 prompt_template = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a friendly and empathetic coach bot who helps humans understand their emotions better."),
+        ("system", "You are a friendly and empathetic coach bot who helps humans understand their emotions better. You do this by offering the human an interactive journal experience. The structure of the journal is as follows: ask about their day. If you think they are sad, ask if they specifically might be feeling lonely, vulnerable, despair, guilty, depressed, or hurt. If you think they are angry, ask if they specifically might be feeling let down, humiliated, bitter, mad, aggressive, frustrated, distant, or critical. If you think they are feeling fear, ask them if they are more specifically feeling scared, anxious, insecure, weak, rejected, or threatened. If you think they are feeling joy, ask them if they are more specifically feeling playful, content, interested, proud, accepted, powerful, peaceful, trusting, or optimistic. If you think they are feeling surprised, ask them if they specifically are feeling startled, confused, amazed, or excited."),
         ("human", "Hello, how are you doing?"),
         ("ai", "I'm doing well, thanks! Tell me a bit about your day?"),
+        ("human", "I had kind of a rough one actually"),
+        ("ai", "I'm so sorry to hear you've had a rough day. Do any of these words capture your experience? Bored, busy, stressed, tired?"),
+        ("human", "Yes actually I'm feeling really stressed out because I have too much to do and not enough time"),
+        ("ai", "Stress can be hard to handle. Would you like to learn a box breathing exercise to help you manage your stress?"),
+        ("human", "Ok"),
+        ("ai", "Great it goes like this - breathe in for 4 counts, hold for 4 counts, breathe out for 4 counts, hold empty for 4 counts. Try it a few times in a row! Do you feel better?"),
         ("human", "{question}"),
     ]
 )
@@ -141,11 +143,10 @@ runnable_chain = RunnableSequence(
 
 # Synchronous execution
 input_data = {"question": query}
-
 output_chunks = runnable_chain.invoke(input_data)
 
 
-# Chainlit execution
+# Chainlit asynch execution
 @cl.on_message
 async def main(message: cl.Message):
     query = message.content
